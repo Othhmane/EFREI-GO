@@ -7,34 +7,23 @@ import (
 	"strings"
 
 	"mini-crm/internal/handler"
-	"mini-crm/internal/notifier"
 	"mini-crm/internal/service"
 	"mini-crm/internal/storage"
 	"mini-crm/pkg/utils"
 )
 
 func main() {
-	// 1. Initialisation du store
 	store, err := storage.NewJSONFileStore("contacts.json")
 	if err != nil {
 		fmt.Println("Erreur initialisation store:", err)
 		return
 	}
 
-	// 2. Création de la slice de notificateurs
-	notifiers := []notifier.Notifier{
-		notifier.NewEmailNotifier("crm@example.com", "admin@example.com"),
-		notifier.NewSmsNotifier("+33612345678"),
-	}
+	svc := service.NewContactService(store)
 
-	// 3. Initialisation du service (avec les notificateurs)
-	svc := service.NewContactService(store, notifiers)
-
-	// 4. Initialisation du handler CLI
 	reader := bufio.NewReader(os.Stdin)
 	cliHandler := handler.NewCLIHandler(svc, reader)
 
-	// 5. Boucle principale
 	for {
 		printMenu()
 		fmt.Print("Votre choix: ")
@@ -43,7 +32,6 @@ func main() {
 			fmt.Println("Erreur lecture:", err)
 			continue
 		}
-
 		switch strings.TrimSpace(line) {
 		case "1":
 			cliHandler.AddContactInteractive()

@@ -5,15 +5,13 @@ import (
 	"strings"
 )
 
-// Contact représente un contact du CRM.
 type Contact struct {
 	ID    int
 	Name  string
 	Email string
 }
 
-// NewContact crée un nouveau Contact après validation.
-// Retourne une erreur si les données sont invalides.
+// création un nouveau Contact après validation
 func NewContact(id int, name, email string) (*Contact, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("l'ID doit être positif (reçu: %d)", id)
@@ -31,8 +29,7 @@ func NewContact(id int, name, email string) (*Contact, error) {
 	}, nil
 }
 
-// Update met à jour les champs du contact.
-// Si un paramètre est vide, la valeur actuelle est conservée.
+// Si un paramètre est vide, la valeur actuelle est conservée
 func (c *Contact) Update(name, email string) {
 	if strings.TrimSpace(name) != "" {
 		c.Name = strings.TrimSpace(name)
@@ -42,7 +39,7 @@ func (c *Contact) Update(name, email string) {
 	}
 }
 
-// String retourne une représentation textuelle du contact.
+//  retourne contact
 func (c *Contact) String() string {
 	return fmt.Sprintf("ID:%d | Nom:%s | Email:%s", c.ID, c.Name, c.Email)
 }

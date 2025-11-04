@@ -7,13 +7,13 @@ import (
 	"os"
 )
 
-// JSONFileStore stocke les contacts dans un fichier JSON (persistant).
+//  stocke les contacts dans un fichier JSON (persistant)
 type JSONFileStore struct {
 	filename string
 	contacts map[int]*domain.Contact
 }
 
-// NewJSONFileStore crée un JSONFileStore et charge les contacts depuis le fichier.
+//  crée un JSONFileStore et charge les contacts depuis le fichier
 func NewJSONFileStore(filename string) (*JSONFileStore, error) {
 	store := &JSONFileStore{
 		filename: filename,
@@ -31,7 +31,7 @@ func NewJSONFileStore(filename string) (*JSONFileStore, error) {
 	return store, nil
 }
 
-// load charge les contacts depuis le fichier JSON.
+// load charge les contacts depuis le fichier JSON
 func (j *JSONFileStore) load() error {
 	file, err := os.Open(j.filename)
 	if err != nil {

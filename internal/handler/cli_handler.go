@@ -7,13 +7,13 @@ import (
 	"mini-crm/pkg/utils"
 )
 
-// CLIHandler gère les interactions CLI.
+// CLIHandler gère les interactions CLI
 type CLIHandler struct {
 	service *service.ContactService
 	reader  *bufio.Reader
 }
 
-// NewCLIHandler crée un nouveau handler CLI.
+// NewCLIHandler crée un nouveau handler CLI
 func NewCLIHandler(service *service.ContactService, reader *bufio.Reader) *CLIHandler {
 	return &CLIHandler{
 		service: service,
@@ -45,7 +45,7 @@ func (h *CLIHandler) AddContactInteractive() {
 	fmt.Println("✓ Contact ajouté avec succès.")
 }
 
-// ListContacts affiche tous les contacts.
+// ListContacts affiche tous les contacts
 func (h *CLIHandler) ListContacts() {
 	contacts := h.service.GetAllContacts()
 	if len(contacts) == 0 {
@@ -59,7 +59,7 @@ func (h *CLIHandler) ListContacts() {
 	}
 }
 
-// DeleteContactInteractive supprime un contact par ID.
+// DeleteContactInteractive supprime un contact par ID
 func (h *CLIHandler) DeleteContactInteractive() {
 	fmt.Print("ID à supprimer: ")
 	idStr, _ := utils.ReadLine(h.reader)
@@ -77,7 +77,7 @@ func (h *CLIHandler) DeleteContactInteractive() {
 	fmt.Println("✓ Contact supprimé.")
 }
 
-// UpdateContactInteractive met à jour un contact.
+// UpdateContactInteractive met à jour un contact
 func (h *CLIHandler) UpdateContactInteractive() {
 	fmt.Print("ID à mettre à jour: ")
 	idStr, _ := utils.ReadLine(h.reader)
