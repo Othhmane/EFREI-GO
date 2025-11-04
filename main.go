@@ -15,7 +15,6 @@ type Contact struct {
 }
 
 
-// Principe: Je valide AVANT de créer l'objet, pour garantir qu'un Contact est toujours valide.
 func NewContact(id int, name, email string) (*Contact, error) {
 	// Validation: ID doit être strictement positif
 	if id <= 0 {
@@ -35,7 +34,6 @@ func NewContact(id int, name, email string) (*Contact, error) {
 }
 
 
-// Si un paramètre est vide, je conserve la valeur actuelle.
 func (c *Contact) Update(name, email string) {
 	if strings.TrimSpace(name) != "" {
 		c.Name = strings.TrimSpace(name)
@@ -45,13 +43,13 @@ func (c *Contact) Update(name, email string) {
 	}
 }
 
-// String retourne une représentation textuelle du Contact (pour affichage)
+//  (pour affichage)
 func (c *Contact) String() string {
 	return fmt.Sprintf("ID:%d | Nom:%s | Email:%s", c.ID, c.Name, c.Email)
 }
 
 
-// on peut modifier directement les champs sans réassigner dans la map
+// modifier directement les champs sans réassigner dans la map
 var contacts = make(map[int]*Contact)
 
 
@@ -100,8 +98,6 @@ func printMenu() {
 }
 
 
-// readLine lit une ligne depuis le reader et retire les espaces de début/fin.
-// Gère l'erreur de lecture proprement.
 func readLine(r *bufio.Reader) (string, error) {
 	s, err := r.ReadString('\n')
 	if err != nil {
@@ -117,8 +113,7 @@ func parseInt(s string) (int, error) {
 
 ///////////////////////////////////////////////// 8. OPÉRATIONS CRUD /////////////////////////////////////////////////
 
-// addContactInteractive demande les infos au clavier et ajoute un contact.
-// Utilise le constructeur NewContact pour valider les données.
+// NewContact pour valider les données
 func addContactInteractive(r *bufio.Reader) {
 	fmt.Print("ID: ")
 	idStr, _ := readLine(r)
@@ -139,7 +134,7 @@ func addContactInteractive(r *bufio.Reader) {
 	fmt.Print("Email: ")
 	email, _ := readLine(r)
 
-	// Créer le contact via le constructeur (validation automatique)
+	// Créer le contact via le constructeur 
 	contact, err := NewContact(id, name, email)
 	if err != nil {
 		fmt.Println("Erreur création contact:", err)
@@ -151,8 +146,6 @@ func addContactInteractive(r *bufio.Reader) {
 	fmt.Println("✓ Contact ajouté avec succès.")
 }
 
-// listContacts affiche tous les contacts présents dans la map
-// Note: l'ordre d'itération d'une map n'est pas garanti
 func listContacts() {
 	if len(contacts) == 0 {
 		fmt.Println("Aucun contact.")
@@ -167,7 +160,6 @@ func listContacts() {
 	}
 }
 
-// deleteContactInteractive supprime un contact par ID après vérification.
 func deleteContactInteractive(r *bufio.Reader) {
 	fmt.Print("ID à supprimer: ")
 	idStr, _ := readLine(r)
@@ -188,8 +180,6 @@ func deleteContactInteractive(r *bufio.Reader) {
 	fmt.Println("✓ Contact supprimé.")
 }
 
-// updateContactInteractive met à jour un contact existant.
-// Utilise la méthode Update() attachée au type Contact.
 func updateContactInteractive(r *bufio.Reader) {
 	fmt.Print("ID à mettre à jour: ")
 	idStr, _ := readLine(r)
@@ -200,7 +190,7 @@ func updateContactInteractive(r *bufio.Reader) {
 	}
 
 	// Récupérer le contact (comma-ok idiom)
-	// Ici, c est un *pointeur* vers Contact, donc on peut modifier directement
+	// c est un *pointeur* vers Contact, donc on peut modifier directement
 	c, ok := contacts[id]
 	if !ok {
 		fmt.Println("ID introuvable.")
@@ -210,14 +200,10 @@ func updateContactInteractive(r *bufio.Reader) {
 	fmt.Printf("Nouveau nom (laisser vide pour garder '%s'): ", c.Name)
 	name, _ := readLine(r)
 
-	// Proposer de modifier l'email
 	fmt.Printf("Nouvel email (laisser vide pour garder '%s'): ", c.Email)
 	email, _ := readLine(r)
 
-	// Appeler la méthode Update du Contact (logique encapsulée)
 	c.Update(name, email)
 
-	// Pas besoin de réassigner dans la map: c est un pointeur,
-	// les modifications sont directement reflétées dans contacts[id]
 	fmt.Println("✓ Contact mis à jour.")
 }
