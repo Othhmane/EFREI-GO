@@ -2,16 +2,14 @@ package main
 
 import (
 	"bufio"
-	"encoding/json" // Pour encoder/décoder JSON
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
 
-// ============================================================
-// 1. STRUCTURE Contact
-// ============================================================
+// STRUCTURE Contact
 
 type Contact struct {
 	ID    int
@@ -22,7 +20,7 @@ type Contact struct {
 // Constructeur avec validation
 func NewContact(id int, name, email string) (*Contact, error) {
 	if id <= 0 {
-		return nil, fmt.Errorf("l'ID doit être positif")
+		return nil, fmt.Errorf("l'ID doit être positif (reçu: %d)", id)
 	}
 	if strings.TrimSpace(name) == "" {
 		return nil, fmt.Errorf("le nom est obligatoire")
@@ -37,7 +35,7 @@ func NewContact(id int, name, email string) (*Contact, error) {
 	}, nil
 }
 
-// Méthode Update pour modifier un contact
+// Mise à jour partielle
 func (c *Contact) Update(name, email string) {
 	if strings.TrimSpace(name) != "" {
 		c.Name = strings.TrimSpace(name)
@@ -47,17 +45,13 @@ func (c *Contact) Update(name, email string) {
 	}
 }
 
-// Méthode String pour affichage (implémente fmt.Stringer)
+// Affichage
 func (c *Contact) String() string {
 	return fmt.Sprintf("ID:%d | Nom:%s | Email:%s", c.ID, c.Name, c.Email)
 }
 
-// ============================================================
-// 2. INTERFACE Storer (contrat de stockage)
-// ============================================================
+// INTERFACE Storer (contrat de stockage)
 
-// Storer définit les opérations de stockage pour les contacts.
-// Principe: on découple la logique métier (CRUD) de l'implémentation du stockage.
 type Storer interface {
 	Add(c *Contact) error
 	GetByID(id int) (*Contact, bool)
@@ -66,18 +60,14 @@ type Storer interface {
 	Delete(id int) error
 }
 
-// ============================================================
-// 3. STRUCT MemoryStore (stockage en mémoire)
-// ============================================================
+// MemoryStore (en mémoire)
 
 type MemoryStore struct {
 	contacts map[int]*Contact
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{
-		contacts: make(map[int]*Contact),
-	}
+	return &MemoryStore{contacts: make(map[int]*Contact)}
 }
 
 func (m *MemoryStore) Add(c *Contact) error {
@@ -94,11 +84,11 @@ func (m *MemoryStore) GetByID(id int) (*Contact, bool) {
 }
 
 func (m *MemoryStore) GetAll() []*Contact {
-	result := make([]*Contact, 0, len(m.contacts))
+	res := make([]*Contact, 0, len(m.contacts))
 	for _, c := range m.contacts {
-		result = append(result, c)
+		res = append(res, c)
 	}
-	return result
+	return res
 }
 
 func (m *MemoryStore) Update(c *Contact) error {
@@ -117,150 +107,110 @@ func (m *MemoryStore) Delete(id int) error {
 	return nil
 }
 
-// ============================================================
-// 4. STRUCT JSONFileStore (stockage persistant dans un fichier JSON)
-// ============================================================
+// JSONFileStore (fichier JSON persistant)
 
-// JSONFileStore stocke les contacts dans un fichier JSON.
-// Implémente l'interface Storer.
-// Principe: chaque opération (Add, Update, Delete) sauvegarde immédiatement dans le fichier.
 type JSONFileStore struct {
 	filename string
 	contacts map[int]*Contact
 }
 
-// NewJSONFileStore crée un JSONFileStore et charge les contacts depuis le fichier.
-// Si le fichier n'existe pas, il sera créé au premier ajout.
 func NewJSONFileStore(filename string) (*JSONFileStore, error) {
 	store := &JSONFileStore{
 		filename: filename,
 		contacts: make(map[int]*Contact),
 	}
-
-	// Charger les contacts existants depuis le fichier
-	if err := store.load(); err != nil {
-		// Si le fichier n'existe pas, ce n'est pas une erreur (on démarre vide)
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("erreur chargement fichier: %w", err)
-		}
+	if err := store.load(); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("erreur chargement fichier: %w", err)
 	}
-
 	return store, nil
 }
 
-// load charge les contacts depuis le fichier JSON.
 func (j *JSONFileStore) load() error {
-	// Ouvrir le fichier en lecture
 	file, err := os.Open(j.filename)
 	if err != nil {
-		return err // Retourne l'erreur (peut être os.IsNotExist)
+		return err
 	}
 	defer file.Close()
 
-	// Décoder le JSON dans une slice temporaire
 	var contacts []*Contact
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&contacts); err != nil {
+	dec := json.NewDecoder(file)
+	if err := dec.Decode(&contacts); err != nil {
 		return fmt.Errorf("erreur décodage JSON: %w", err)
 	}
-
-	// Remplir la map depuis la slice
 	for _, c := range contacts {
 		j.contacts[c.ID] = c
 	}
-
 	return nil
 }
 
-// save sauvegarde tous les contacts dans le fichier JSON.
-// Appelée après chaque modification (Add, Update, Delete).
 func (j *JSONFileStore) save() error {
-	// Convertir la map en slice pour l'encodage JSON
-	contacts := make([]*Contact, 0, len(j.contacts))
+	list := make([]*Contact, 0, len(j.contacts))
 	for _, c := range j.contacts {
-		contacts = append(contacts, c)
+		list = append(list, c)
 	}
-
-	// Créer/écraser le fichier
 	file, err := os.Create(j.filename)
 	if err != nil {
 		return fmt.Errorf("erreur création fichier: %w", err)
 	}
 	defer file.Close()
 
-	// Encoder en JSON avec indentation (lisible)
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(contacts); err != nil {
+	enc := json.NewEncoder(file)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(list); err != nil {
 		return fmt.Errorf("erreur encodage JSON: %w", err)
 	}
-
 	return nil
 }
 
-// Add ajoute un contact et sauvegarde dans le fichier.
 func (j *JSONFileStore) Add(c *Contact) error {
 	if _, exists := j.contacts[c.ID]; exists {
 		return fmt.Errorf("un contact avec l'ID %d existe déjà", c.ID)
 	}
 	j.contacts[c.ID] = c
-	return j.save() // Sauvegarde immédiate
+	return j.save()
 }
 
-// GetByID récupère un contact par ID (comma-ok idiom).
 func (j *JSONFileStore) GetByID(id int) (*Contact, bool) {
 	c, ok := j.contacts[id]
 	return c, ok
 }
 
-// GetAll retourne tous les contacts.
 func (j *JSONFileStore) GetAll() []*Contact {
-	result := make([]*Contact, 0, len(j.contacts))
+	res := make([]*Contact, 0, len(j.contacts))
 	for _, c := range j.contacts {
-		result = append(result, c)
+		res = append(res, c)
 	}
-	return result
+	return res
 }
 
-// Update met à jour un contact et sauvegarde.
 func (j *JSONFileStore) Update(c *Contact) error {
 	if _, ok := j.contacts[c.ID]; !ok {
 		return fmt.Errorf("contact avec l'ID %d introuvable", c.ID)
 	}
 	j.contacts[c.ID] = c
-	return j.save() // Sauvegarde immédiate
+	return j.save()
 }
 
-// Delete supprime un contact et sauvegarde.
 func (j *JSONFileStore) Delete(id int) error {
 	if _, ok := j.contacts[id]; !ok {
 		return fmt.Errorf("contact avec l'ID %d introuvable", id)
 	}
 	delete(j.contacts, id)
-	return j.save() // Sauvegarde immédiate
+	return j.save()
 }
 
-// ============================================================
-// 5. FONCTION PRINCIPALE (choix du store au démarrage)
-// ============================================================
+// MAIN
 
 func main() {
-	// Choix du store: décommenter celui que tu veux utiliser
-
-	// Option 1: Stockage en mémoire (volatile)
+	// Choisis l'un des deux stores:
 	// store := NewMemoryStore()
-
-	// Option 2: Stockage persistant dans un fichier JSON
 	store, err := NewJSONFileStore("contacts.json")
 	if err != nil {
 		fmt.Println("Erreur initialisation store:", err)
 		return
 	}
 
-	// Reader pour les entrées utilisateur
 	reader := bufio.NewReader(os.Stdin)
-
-	// Boucle principale du menu
 	for {
 		printMenu()
 		fmt.Print("Votre choix: ")
@@ -269,7 +219,6 @@ func main() {
 			fmt.Println("Erreur lecture:", err)
 			continue
 		}
-
 		switch strings.TrimSpace(line) {
 		case "1":
 			addContactInteractive(reader, store)
@@ -283,28 +232,12 @@ func main() {
 			fmt.Println("Au revoir!")
 			return
 		default:
-			fmt.Println("Choix invalide. Réessayez.")
+			fmt.Println("Choix invalidRéessayez.")
 		}
 	}
 }
 
-// ============================================================
-// 6. AFFICHAGE DU MENU
-// ============================================================
-
-func printMenu() {
-	fmt.Println()
-	fmt.Println("=== Mini-CRM ===")
-	fmt.Println("1) Ajouter un contact")
-	fmt.Println("2) Lister les contacts")
-	fmt.Println("3) Supprimer un contact par ID")
-	fmt.Println("4) Mettre à jour un contact")
-	fmt.Println("5) Quitter")
-}
-
-// ============================================================
-// 7. UTILITAIRES I/O
-// ============================================================
+// UTILITAIRES I/O
 
 func readLine(r *bufio.Reader) (string, error) {
 	s, err := r.ReadString('\n')
@@ -318,9 +251,7 @@ func parseInt(s string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(s))
 }
 
-// ============================================================
-// 8. OPÉRATIONS CRUD (reçoivent l'interface Storer)
-// ============================================================
+// CRUD via Storer
 
 func addContactInteractive(r *bufio.Reader, store Storer) {
 	fmt.Print("ID: ")
@@ -357,7 +288,6 @@ func listContacts(store Storer) {
 		fmt.Println("Aucun contact.")
 		return
 	}
-
 	fmt.Println("\n=== Liste des contacts ===")
 	for _, c := range contacts {
 		fmt.Println("-", c)
@@ -372,12 +302,10 @@ func deleteContactInteractive(r *bufio.Reader, store Storer) {
 		fmt.Println("ID invalide:", err)
 		return
 	}
-
 	if err := store.Delete(id); err != nil {
 		fmt.Println("Erreur suppression:", err)
 		return
 	}
-
 	fmt.Println("✓ Contact supprimé.")
 }
 
@@ -398,16 +326,13 @@ func updateContactInteractive(r *bufio.Reader, store Storer) {
 
 	fmt.Printf("Nouveau nom (laisser vide pour garder '%s'): ", c.Name)
 	name, _ := readLine(r)
-
 	fmt.Printf("Nouvel email (laisser vide pour garder '%s'): ", c.Email)
 	email, _ := readLine(r)
 
 	c.Update(name, email)
-
 	if err := store.Update(c); err != nil {
 		fmt.Println("Erreur mise à jour:", err)
 		return
 	}
-
 	fmt.Println("✓ Contact mis à jour.")
 }
