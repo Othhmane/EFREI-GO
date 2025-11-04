@@ -9,7 +9,9 @@ import (
 	"strings"
 )
 
-// STRUCTURE Contact
+// ============================================================
+// 1. STRUCTURE Contact
+// ============================================================
 
 type Contact struct {
 	ID    int
@@ -50,7 +52,9 @@ func (c *Contact) String() string {
 	return fmt.Sprintf("ID:%d | Nom:%s | Email:%s", c.ID, c.Name, c.Email)
 }
 
-// INTERFACE Storer (contrat de stockage)
+// ============================================================
+// 2. INTERFACE Storer (contrat de stockage)
+// ============================================================
 
 type Storer interface {
 	Add(c *Contact) error
@@ -60,7 +64,9 @@ type Storer interface {
 	Delete(id int) error
 }
 
-// MemoryStore (en mémoire)
+// ============================================================
+// 3. MemoryStore (en mémoire)
+// ============================================================
 
 type MemoryStore struct {
 	contacts map[int]*Contact
@@ -107,7 +113,9 @@ func (m *MemoryStore) Delete(id int) error {
 	return nil
 }
 
-// JSONFileStore (fichier JSON persistant)
+// ============================================================
+// 4. JSONFileStore (fichier JSON persistant)
+// ============================================================
 
 type JSONFileStore struct {
 	filename string
@@ -199,7 +207,9 @@ func (j *JSONFileStore) Delete(id int) error {
 	return j.save()
 }
 
-// MAIN
+// ============================================================
+// 5. MAIN
+// ============================================================
 
 func main() {
 	// Choisis l'un des deux stores:
@@ -232,12 +242,14 @@ func main() {
 			fmt.Println("Au revoir!")
 			return
 		default:
-			fmt.Println("Choix invalidRéessayez.")
+			fmt.Println("Choix invalide. Réessayez.")
 		}
 	}
 }
 
-// UTILITAIRES I/O
+// ============================================================
+// 6. UTILITAIRES I/O
+// ============================================================
 
 func readLine(r *bufio.Reader) (string, error) {
 	s, err := r.ReadString('\n')
@@ -251,7 +263,9 @@ func parseInt(s string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(s))
 }
 
-// CRUD via Storer
+// ============================================================
+// 7. CRUD via Storer
+// ============================================================
 
 func addContactInteractive(r *bufio.Reader, store Storer) {
 	fmt.Print("ID: ")
