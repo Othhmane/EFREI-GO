@@ -111,7 +111,6 @@ func parseInt(s string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(s))
 }
 
-///////////////////////////////////////////////// 8. OPÉRATIONS CRUD /////////////////////////////////////////////////
 
 // NewContact pour valider les données
 func addContactInteractive(r *bufio.Reader) {
