@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
+
+// STRUCTURE Contact
 
 type Contact struct {
 	ID    int
@@ -14,10 +17,8 @@ type Contact struct {
 	Email string
 }
 
-
-// Principe: Je valide AVANT de créer l'objet, pour garantir qu'un Contact est toujours valide.
+// Constructeur avec validation
 func NewContact(id int, name, email string) (*Contact, error) {
-	// Validation: ID doit être strictement positif
 	if id <= 0 {
 		return nil, fmt.Errorf("l'ID doit être positif (reçu: %d)", id)
 	}
@@ -34,8 +35,7 @@ func NewContact(id int, name, email string) (*Contact, error) {
 	}, nil
 }
 
-
-// Si un paramètre est vide, je conserve la valeur actuelle.
+// Mise à jour partielle
 func (c *Contact) Update(name, email string) {
 	if strings.TrimSpace(name) != "" {
 		c.Name = strings.TrimSpace(name)
@@ -45,63 +45,200 @@ func (c *Contact) Update(name, email string) {
 	}
 }
 
-// String retourne une représentation textuelle du Contact (pour affichage)
+// Affichage
 func (c *Contact) String() string {
 	return fmt.Sprintf("ID:%d | Nom:%s | Email:%s", c.ID, c.Name, c.Email)
 }
 
+// INTERFACE Storer (contrat de stockage)
 
-// on peut modifier directement les champs sans réassigner dans la map
-var contacts = make(map[int]*Contact)
+type Storer interface {
+	Add(c *Contact) error
+	GetByID(id int) (*Contact, bool)
+	GetAll() []*Contact
+	Update(c *Contact) error
+	Delete(id int) error
+}
 
+// MemoryStore (en mémoire)
+
+type MemoryStore struct {
+	contacts map[int]*Contact
+}
+
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{contacts: make(map[int]*Contact)}
+}
+
+func (m *MemoryStore) Add(c *Contact) error {
+	if _, exists := m.contacts[c.ID]; exists {
+		return fmt.Errorf("un contact avec l'ID %d existe déjà", c.ID)
+	}
+	m.contacts[c.ID] = c
+	return nil
+}
+
+func (m *MemoryStore) GetByID(id int) (*Contact, bool) {
+	c, ok := m.contacts[id]
+	return c, ok
+}
+
+func (m *MemoryStore) GetAll() []*Contact {
+	res := make([]*Contact, 0, len(m.contacts))
+	for _, c := range m.contacts {
+		res = append(res, c)
+	}
+	return res
+}
+
+func (m *MemoryStore) Update(c *Contact) error {
+	if _, ok := m.contacts[c.ID]; !ok {
+		return fmt.Errorf("contact avec l'ID %d introuvable", c.ID)
+	}
+	m.contacts[c.ID] = c
+	return nil
+}
+
+func (m *MemoryStore) Delete(id int) error {
+	if _, ok := m.contacts[id]; !ok {
+		return fmt.Errorf("contact avec l'ID %d introuvable", id)
+	}
+	delete(m.contacts, id)
+	return nil
+}
+
+// JSONFileStore (fichier JSON persistant)
+
+type JSONFileStore struct {
+	filename string
+	contacts map[int]*Contact
+}
+
+func NewJSONFileStore(filename string) (*JSONFileStore, error) {
+	store := &JSONFileStore{
+		filename: filename,
+		contacts: make(map[int]*Contact),
+	}
+	if err := store.load(); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("erreur chargement fichier: %w", err)
+	}
+	return store, nil
+}
+
+func (j *JSONFileStore) load() error {
+	file, err := os.Open(j.filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	var contacts []*Contact
+	dec := json.NewDecoder(file)
+	if err := dec.Decode(&contacts); err != nil {
+		return fmt.Errorf("erreur décodage JSON: %w", err)
+	}
+	for _, c := range contacts {
+		j.contacts[c.ID] = c
+	}
+	return nil
+}
+
+func (j *JSONFileStore) save() error {
+	list := make([]*Contact, 0, len(j.contacts))
+	for _, c := range j.contacts {
+		list = append(list, c)
+	}
+	file, err := os.Create(j.filename)
+	if err != nil {
+		return fmt.Errorf("erreur création fichier: %w", err)
+	}
+	defer file.Close()
+
+	enc := json.NewEncoder(file)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(list); err != nil {
+		return fmt.Errorf("erreur encodage JSON: %w", err)
+	}
+	return nil
+}
+
+func (j *JSONFileStore) Add(c *Contact) error {
+	if _, exists := j.contacts[c.ID]; exists {
+		return fmt.Errorf("un contact avec l'ID %d existe déjà", c.ID)
+	}
+	j.contacts[c.ID] = c
+	return j.save()
+}
+
+func (j *JSONFileStore) GetByID(id int) (*Contact, bool) {
+	c, ok := j.contacts[id]
+	return c, ok
+}
+
+func (j *JSONFileStore) GetAll() []*Contact {
+	res := make([]*Contact, 0, len(j.contacts))
+	for _, c := range j.contacts {
+		res = append(res, c)
+	}
+	return res
+}
+
+func (j *JSONFileStore) Update(c *Contact) error {
+	if _, ok := j.contacts[c.ID]; !ok {
+		return fmt.Errorf("contact avec l'ID %d introuvable", c.ID)
+	}
+	j.contacts[c.ID] = c
+	return j.save()
+}
+
+func (j *JSONFileStore) Delete(id int) error {
+	if _, ok := j.contacts[id]; !ok {
+		return fmt.Errorf("contact avec l'ID %d introuvable", id)
+	}
+	delete(j.contacts, id)
+	return j.save()
+}
+
+// MAIN
 
 func main() {
-	// Reader tamponné pour lire les entrées utilisateur
-	reader := bufio.NewReader(os.Stdin)
+	// Choisis l'un des deux stores:
+	// store := NewMemoryStore()
+	store, err := NewJSONFileStore("contacts.json")
+	if err != nil {
+		fmt.Println("Erreur initialisation store:", err)
+		return
+	}
 
+	reader := bufio.NewReader(os.Stdin)
 	for {
 		printMenu()
 		fmt.Print("Votre choix: ")
-
-		// Lecture du choix utilisateur
 		line, err := readLine(reader)
 		if err != nil {
 			fmt.Println("Erreur lecture:", err)
 			continue
 		}
-
 		switch strings.TrimSpace(line) {
 		case "1":
-			addContactInteractive(reader)
+			addContactInteractive(reader, store)
 		case "2":
-			listContacts()
+			listContacts(store)
 		case "3":
-			deleteContactInteractive(reader)
+			deleteContactInteractive(reader, store)
 		case "4":
-			updateContactInteractive(reader)
+			updateContactInteractive(reader, store)
 		case "5":
 			fmt.Println("Au revoir!")
 			return
 		default:
-			fmt.Println("Choix invalide. Réessayez.")
+			fmt.Println("Choix invalidRéessayez.")
 		}
 	}
 }
 
+// UTILITAIRES I/O
 
-func printMenu() {
-	fmt.Println()
-	fmt.Println("=== Mini-CRM ===")
-	fmt.Println("1) Ajouter un contact")
-	fmt.Println("2) Lister les contacts")
-	fmt.Println("3) Supprimer un contact par ID")
-	fmt.Println("4) Mettre à jour un contact")
-	fmt.Println("5) Quitter")
-}
-
-
-// readLine lit une ligne depuis le reader et retire les espaces de début/fin.
-// Gère l'erreur de lecture proprement.
 func readLine(r *bufio.Reader) (string, error) {
 	s, err := r.ReadString('\n')
 	if err != nil {
@@ -110,26 +247,18 @@ func readLine(r *bufio.Reader) (string, error) {
 	return strings.TrimSpace(s), nil
 }
 
-// Retourne l'erreur si la conversion échoue
 func parseInt(s string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(s))
 }
 
-///////////////////////////////////////////////// 8. OPÉRATIONS CRUD /////////////////////////////////////////////////
+// CRUD via Storer
 
-// addContactInteractive demande les infos au clavier et ajoute un contact.
-// Utilise le constructeur NewContact pour valider les données.
-func addContactInteractive(r *bufio.Reader) {
+func addContactInteractive(r *bufio.Reader, store Storer) {
 	fmt.Print("ID: ")
 	idStr, _ := readLine(r)
 	id, err := parseInt(idStr)
 	if err != nil {
 		fmt.Println("ID invalide:", err)
-		return
-	}
-
-	if _, exists := contacts[id]; exists {
-		fmt.Println("Un contact avec cet ID existe déjà.")
 		return
 	}
 
@@ -139,36 +268,33 @@ func addContactInteractive(r *bufio.Reader) {
 	fmt.Print("Email: ")
 	email, _ := readLine(r)
 
-	// Créer le contact via le constructeur (validation automatique)
 	contact, err := NewContact(id, name, email)
 	if err != nil {
 		fmt.Println("Erreur création contact:", err)
 		return
 	}
 
-	// Stocker le pointeur dans la map
-	contacts[id] = contact
+	if err := store.Add(contact); err != nil {
+		fmt.Println("Erreur ajout:", err)
+		return
+	}
+
 	fmt.Println("✓ Contact ajouté avec succès.")
 }
 
-// listContacts affiche tous les contacts présents dans la map
-// Note: l'ordre d'itération d'une map n'est pas garanti
-func listContacts() {
+func listContacts(store Storer) {
+	contacts := store.GetAll()
 	if len(contacts) == 0 {
 		fmt.Println("Aucun contact.")
 		return
 	}
-
 	fmt.Println("\n=== Liste des contacts ===")
-	// Itération sur la map (clé = id, valeur = pointeur vers Contact)
 	for _, c := range contacts {
-		// Utilise la méthode String() du Contact (fmt.Stringer)
 		fmt.Println("-", c)
 	}
 }
 
-// deleteContactInteractive supprime un contact par ID après vérification.
-func deleteContactInteractive(r *bufio.Reader) {
+func deleteContactInteractive(r *bufio.Reader, store Storer) {
 	fmt.Print("ID à supprimer: ")
 	idStr, _ := readLine(r)
 	id, err := parseInt(idStr)
@@ -176,21 +302,14 @@ func deleteContactInteractive(r *bufio.Reader) {
 		fmt.Println("ID invalide:", err)
 		return
 	}
-
-	// Vérifier l'existence avec comma-ok idiom
-	if _, ok := contacts[id]; !ok {
-		fmt.Println("ID introuvable.")
+	if err := store.Delete(id); err != nil {
+		fmt.Println("Erreur suppression:", err)
 		return
 	}
-
-	// Suppression dans la map (O(1))
-	delete(contacts, id)
 	fmt.Println("✓ Contact supprimé.")
 }
 
-// updateContactInteractive met à jour un contact existant.
-// Utilise la méthode Update() attachée au type Contact.
-func updateContactInteractive(r *bufio.Reader) {
+func updateContactInteractive(r *bufio.Reader, store Storer) {
 	fmt.Print("ID à mettre à jour: ")
 	idStr, _ := readLine(r)
 	id, err := parseInt(idStr)
@@ -199,9 +318,7 @@ func updateContactInteractive(r *bufio.Reader) {
 		return
 	}
 
-	// Récupérer le contact (comma-ok idiom)
-	// Ici, c est un *pointeur* vers Contact, donc on peut modifier directement
-	c, ok := contacts[id]
+	c, ok := store.GetByID(id)
 	if !ok {
 		fmt.Println("ID introuvable.")
 		return
@@ -209,15 +326,13 @@ func updateContactInteractive(r *bufio.Reader) {
 
 	fmt.Printf("Nouveau nom (laisser vide pour garder '%s'): ", c.Name)
 	name, _ := readLine(r)
-
-	// Proposer de modifier l'email
 	fmt.Printf("Nouvel email (laisser vide pour garder '%s'): ", c.Email)
 	email, _ := readLine(r)
 
-	// Appeler la méthode Update du Contact (logique encapsulée)
 	c.Update(name, email)
-
-	// Pas besoin de réassigner dans la map: c est un pointeur,
-	// les modifications sont directement reflétées dans contacts[id]
+	if err := store.Update(c); err != nil {
+		fmt.Println("Erreur mise à jour:", err)
+		return
+	}
 	fmt.Println("✓ Contact mis à jour.")
 }
