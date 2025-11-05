@@ -1,6 +1,6 @@
-# 🧩 Mini-CRM
+## 🧩 Mini-CRM
 
-## 🚀 Lancer l’application
+### 🚀 Lancer l’application
 
 ```bash
 go run cmd/cli/main.go
